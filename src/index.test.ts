@@ -1,5 +1,6 @@
 import { describe, expect, test } from 'bun:test'
 import { createSessionCorrelationPlugin } from './index.js'
+import plugin from './index.js'
 
 test('adds a stable session UUID for configured provider', async () => {
   const plugin = await createSessionCorrelationPlugin({
@@ -44,4 +45,12 @@ test('reuses persisted UUID for same native session across plugin instances', as
   )
 
   expect(output.headers['x-claude-code-session-id']).toBe('22222222-2222-4222-8222-222222222222')
+})
+
+test('default plugin factory creates configured hook', async () => {
+  const hooks = await plugin({} as any, {
+    providers: ['ryanair-gateway'],
+    storagePath: '/tmp/session-correlation-export-test.json',
+  } as any)
+  expect(hooks['chat.headers']).toBeDefined()
 })

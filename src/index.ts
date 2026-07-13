@@ -75,6 +75,18 @@ export interface SessionCorrelationHooks {
 
 const DEFAULT_HEADER = 'x-claude-code-session-id'
 
+function validateOptions(options: unknown): SessionCorrelationOptions {
+  if (!options || typeof options !== 'object') {
+    throw new Error('opencode-session-correlation: plugin options are required')
+  }
+  const candidate = options as Partial<SessionCorrelationOptions>
+  const providers = candidate.providers
+  if (!Array.isArray(providers) || providers.length === 0 || !providers.every((id) => typeof id === 'string')) {
+    throw new Error('opencode-session-correlation: options.providers must be a non-empty array of provider ID strings')
+  }
+  return { ...candidate, providers } as SessionCorrelationOptions
+}
+
 export async function createSessionCorrelationPlugin(
   options: SessionCorrelationOptions,
 ): Promise<SessionCorrelationHooks> {
@@ -91,4 +103,12 @@ export async function createSessionCorrelationPlugin(
       output.headers[header] = await getSessionUUID(storagePath, input.sessionID, createUUID)
     },
   }
+}
+
+export default async function sessionCorrelationPlugin(
+  _input: unknown,
+  options?: unknown,
+): Promise<SessionCorrelationHooks> {
+  const validated = validateOptions(options)
+  return createSessionCorrelationPlugin(validated)
 }
