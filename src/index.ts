@@ -168,7 +168,7 @@ export async function createSessionCorrelationPlugin(
 
 interface OpenCodeClientLike {
   session?: {
-    get?: (parameters: { sessionID: string }) => Promise<
+    get?: (parameters: { path: { id: string } }) => Promise<
       { data?: SessionInfo; error?: unknown } | undefined
     >
   }
@@ -184,7 +184,7 @@ export default async function sessionCorrelationPlugin(
     const client = (input as { client?: OpenCodeClientLike } | undefined)?.client
     validated.getSession = async (sessionID) => {
       if (!client?.session?.get) return undefined
-      const result = await client.session.get({ sessionID })
+      const result = await client.session.get({ path: { id: sessionID } })
       if (!result || result.error) return undefined
       return result.data
     }

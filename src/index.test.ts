@@ -134,6 +134,39 @@ test('collapseToRootSession true only resolves each session parent chain once', 
   expect(calls).toBe(2)
 })
 
+test('default plugin factory wires collapseToRootSession into client.session.get using the { path: { id } } parameter shape', async () => {
+  const path = '/tmp/session-correlation-client-wiring-test.json'
+  await Bun.write(path, JSON.stringify({ version: 1, sessions: {} }))
+  const sessions: Record<string, { parentID?: string }> = {
+    ses_child: { parentID: 'ses_root' },
+    ses_root: {},
+  }
+  const fakeClient = {
+    session: {
+      get: async (parameters: { path: { id: string } }) => {
+        const info = sessions[parameters.path.id]
+        if (!info) return { data: undefined, error: { message: 'not found' } }
+        return { data: info, error: undefined }
+      },
+    },
+  }
+
+  const hooks = await plugin(
+    { client: fakeClient } as any,
+    { providers: ['ryanair-gateway'], storagePath: path, collapseToRootSession: true } as any,
+  )
+  const output = { headers: {} as Record<string, string> }
+
+  await hooks['chat.headers']!(
+    { sessionID: 'ses_child', provider: { id: 'ryanair-gateway' } } as any,
+    output,
+  )
+
+  const stored = await Bun.file(path).json()
+  expect(Object.keys(stored.sessions)).toEqual(['ses_root'])
+  expect(output.headers['x-claude-code-session-id']).toBe(stored.sessions['ses_root'])
+})
+
 test('collapseToRootSession true falls back to the calling session ID when getSession throws', async () => {
   const path = '/tmp/session-correlation-collapse-error-test.json'
   const getSession = async () => {
