@@ -1,14 +1,41 @@
 {
   "name": "opencode-session-correlation",
   "version": "0.1.0",
-  "private": true,
+  "description": "OpenCode plugin that injects a stable UUID correlation header per session for configured providers, so a gateway can group requests from the same OpenCode session.",
   "type": "module",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
   "scripts": {
     "build": "tsc",
     "test": "bun test",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "prepublishOnly": "bun run typecheck && bun test && bun run build"
+  },
+  "keywords": [
+    "opencode",
+    "opencode-plugin",
+    "plugin",
+    "session",
+    "correlation",
+    "llm-gateway"
+  ],
+  "author": "Igor Velho",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/igorvelho/opencode-session-correlation.git"
+  },
+  "bugs": {
+    "url": "https://github.com/igorvelho/opencode-session-correlation/issues"
+  },
+  "homepage": "https://github.com/igorvelho/opencode-session-correlation#readme",
+  "engines": {
+    "node": ">=18"
   },
   "devDependencies": {
     "@opencode-ai/plugin": "^1.17.18",

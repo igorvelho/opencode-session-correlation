@@ -4,14 +4,14 @@ import plugin from './index.js'
 
 test('adds a stable session UUID for configured provider', async () => {
   const plugin = await createSessionCorrelationPlugin({
-    providers: ['ryanair-gateway'],
+    providers: ['example-gateway'],
     storagePath: '/tmp/session-correlation-test.json',
     createUUID: () => '11111111-1111-4111-8111-111111111111',
   })
   const output = { headers: {} as Record<string, string> }
 
   await plugin['chat.headers']!(
-    { sessionID: 'ses_native', provider: { id: 'ryanair-gateway' } } as any,
+    { sessionID: 'ses_native', provider: { id: 'example-gateway' } } as any,
     output,
   )
 
@@ -20,7 +20,7 @@ test('adds a stable session UUID for configured provider', async () => {
 
 test('does not change headers for an unconfigured provider', async () => {
   const plugin = await createSessionCorrelationPlugin({
-    providers: ['ryanair-gateway'],
+    providers: ['example-gateway'],
     storagePath: '/tmp/session-correlation-test.json',
   })
   const output = { headers: { existing: 'value' } }
@@ -36,11 +36,11 @@ test('does not change headers for an unconfigured provider', async () => {
 test('reuses persisted UUID for same native session across plugin instances', async () => {
   const path = '/tmp/session-correlation-persistence-test.json'
   await Bun.write(path, JSON.stringify({ version: 1, sessions: { ses_native: '22222222-2222-4222-8222-222222222222' } }))
-  const plugin = await createSessionCorrelationPlugin({ providers: ['ryanair-gateway'], storagePath: path })
+  const plugin = await createSessionCorrelationPlugin({ providers: ['example-gateway'], storagePath: path })
   const output = { headers: {} as Record<string, string> }
 
   await plugin['chat.headers']!(
-    { sessionID: 'ses_native', provider: { id: 'ryanair-gateway' } } as any,
+    { sessionID: 'ses_native', provider: { id: 'example-gateway' } } as any,
     output,
   )
 
@@ -49,7 +49,7 @@ test('reuses persisted UUID for same native session across plugin instances', as
 
 test('default plugin factory creates configured hook', async () => {
   const hooks = await plugin({} as any, {
-    providers: ['ryanair-gateway'],
+    providers: ['example-gateway'],
     storagePath: '/tmp/session-correlation-export-test.json',
   } as any)
   expect(hooks['chat.headers']).toBeDefined()
@@ -60,7 +60,7 @@ test('collapseToRootSession off (default) keys mapping by the calling session, n
   await Bun.write(path, JSON.stringify({ version: 1, sessions: {} }))
   const getSession = async (id: string) => (id === 'ses_child' ? { parentID: 'ses_root' } : undefined)
   const plugin = await createSessionCorrelationPlugin({
-    providers: ['ryanair-gateway'],
+    providers: ['example-gateway'],
     storagePath: path,
     createUUID: () => '33333333-3333-4333-8333-333333333333',
     getSession,
@@ -68,7 +68,7 @@ test('collapseToRootSession off (default) keys mapping by the calling session, n
   const output = { headers: {} as Record<string, string> }
 
   await plugin['chat.headers']!(
-    { sessionID: 'ses_child', provider: { id: 'ryanair-gateway' } } as any,
+    { sessionID: 'ses_child', provider: { id: 'example-gateway' } } as any,
     output,
   )
 
@@ -83,7 +83,7 @@ test('collapseToRootSession true maps a child session to its root session UUID',
   await Bun.write(path, JSON.stringify({ version: 1, sessions: {} }))
   const getSession = async (id: string) => (id === 'ses_child' ? { parentID: 'ses_root' } : undefined)
   const plugin = await createSessionCorrelationPlugin({
-    providers: ['ryanair-gateway'],
+    providers: ['example-gateway'],
     storagePath: path,
     collapseToRootSession: true,
     createUUID: () => '44444444-4444-4444-8444-444444444444',
@@ -93,11 +93,11 @@ test('collapseToRootSession true maps a child session to its root session UUID',
   const rootOutput = { headers: {} as Record<string, string> }
 
   await plugin['chat.headers']!(
-    { sessionID: 'ses_child', provider: { id: 'ryanair-gateway' } } as any,
+    { sessionID: 'ses_child', provider: { id: 'example-gateway' } } as any,
     childOutput,
   )
   await plugin['chat.headers']!(
-    { sessionID: 'ses_root', provider: { id: 'ryanair-gateway' } } as any,
+    { sessionID: 'ses_root', provider: { id: 'example-gateway' } } as any,
     rootOutput,
   )
 
@@ -116,18 +116,18 @@ test('collapseToRootSession true only resolves each session parent chain once', 
     return id === 'ses_child' ? { parentID: 'ses_root' } : undefined
   }
   const plugin = await createSessionCorrelationPlugin({
-    providers: ['ryanair-gateway'],
+    providers: ['example-gateway'],
     storagePath: path,
     collapseToRootSession: true,
     getSession,
   })
 
   await plugin['chat.headers']!(
-    { sessionID: 'ses_child', provider: { id: 'ryanair-gateway' } } as any,
+    { sessionID: 'ses_child', provider: { id: 'example-gateway' } } as any,
     { headers: {} },
   )
   await plugin['chat.headers']!(
-    { sessionID: 'ses_child', provider: { id: 'ryanair-gateway' } } as any,
+    { sessionID: 'ses_child', provider: { id: 'example-gateway' } } as any,
     { headers: {} },
   )
 
@@ -153,12 +153,12 @@ test('default plugin factory wires collapseToRootSession into client.session.get
 
   const hooks = await plugin(
     { client: fakeClient } as any,
-    { providers: ['ryanair-gateway'], storagePath: path, collapseToRootSession: true } as any,
+    { providers: ['example-gateway'], storagePath: path, collapseToRootSession: true } as any,
   )
   const output = { headers: {} as Record<string, string> }
 
   await hooks['chat.headers']!(
-    { sessionID: 'ses_child', provider: { id: 'ryanair-gateway' } } as any,
+    { sessionID: 'ses_child', provider: { id: 'example-gateway' } } as any,
     output,
   )
 
@@ -173,7 +173,7 @@ test('collapseToRootSession true falls back to the calling session ID when getSe
     throw new Error('boom')
   }
   const plugin = await createSessionCorrelationPlugin({
-    providers: ['ryanair-gateway'],
+    providers: ['example-gateway'],
     storagePath: path,
     collapseToRootSession: true,
     createUUID: () => '55555555-5555-4555-8555-555555555555',
@@ -182,7 +182,7 @@ test('collapseToRootSession true falls back to the calling session ID when getSe
   const output = { headers: {} as Record<string, string> }
 
   await plugin['chat.headers']!(
-    { sessionID: 'ses_child', provider: { id: 'ryanair-gateway' } } as any,
+    { sessionID: 'ses_child', provider: { id: 'example-gateway' } } as any,
     output,
   )
 

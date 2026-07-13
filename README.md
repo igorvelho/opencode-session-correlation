@@ -16,6 +16,12 @@ Local OpenCode plugin that injects a stable UUID correlation header for configur
 - It does not send end-user metadata or log prompts, secrets, or request bodies.
 - It does not guarantee that a gateway displays or uses the header. Whether a gateway maps this header into a "Session ID" field depends entirely on that gateway's own request parsing.
 
+## Install
+
+```bash
+npm install opencode-session-correlation
+```
+
 ## Configuration
 
 Add to `opencode.json`:
@@ -24,9 +30,25 @@ Add to `opencode.json`:
 {
   "plugin": [
     [
+      "opencode-session-correlation",
+      {
+        "providers": ["example-gateway"],
+        "header": "x-claude-code-session-id"
+      }
+    ]
+  ]
+}
+```
+
+Using a local checkout instead of the npm package? Point at the directory instead:
+
+```json
+{
+  "plugin": [
+    [
       "/absolute/path/to/opencode-session-correlation",
       {
-        "providers": ["ryanair-gateway"],
+        "providers": ["example-gateway"],
         "header": "x-claude-code-session-id"
       }
     ]
@@ -73,3 +95,7 @@ bun test
 bun run typecheck
 bun run build
 ```
+
+## License
+
+MIT — see [LICENSE](LICENSE).
