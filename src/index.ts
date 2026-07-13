@@ -2,11 +2,17 @@ import { randomUUID } from 'node:crypto'
 import { mkdir, readFile, rename, writeFile } from 'node:fs/promises'
 import { dirname } from 'node:path'
 
+export interface SessionInfo {
+  parentID?: string
+}
+
 export interface SessionCorrelationOptions {
   providers: string[]
   header?: string
   storagePath?: string
   createUUID?: () => string
+  collapseToRootSession?: boolean
+  getSession?: (sessionID: string) => Promise<SessionInfo | undefined>
 }
 
 interface SessionStore {
@@ -43,6 +49,51 @@ async function saveStore(path: string, store: SessionStore): Promise<void> {
 function defaultStoragePath(): string {
   const dataHome = process.env.XDG_DATA_HOME ?? `${process.env.HOME}/.local/share`
   return `${dataHome}/opencode/session-correlation.json`
+}
+
+const MAX_PARENT_CHAIN_DEPTH = 50
+
+function createRootSessionResolver(getSession: (sessionID: string) => Promise<SessionInfo | undefined>) {
+  const cache = new Map<string, string>()
+
+  return async function resolveRootSessionID(sessionID: string): Promise<string> {
+    const cached = cache.get(sessionID)
+    if (cached) return cached
+
+    const chain: string[] = []
+    let current = sessionID
+
+    for (let depth = 0; depth < MAX_PARENT_CHAIN_DEPTH; depth += 1) {
+      const cachedCurrent = cache.get(current)
+      if (cachedCurrent) {
+        for (const id of chain) cache.set(id, cachedCurrent)
+        cache.set(sessionID, cachedCurrent)
+        return cachedCurrent
+      }
+
+      chain.push(current)
+
+      let info: SessionInfo | undefined
+      try {
+        info = await getSession(current)
+      } catch (_) {
+        // Cannot resolve the parent chain. Fall back to the original session ID as its own root.
+        for (const id of chain) cache.set(id, sessionID)
+        return sessionID
+      }
+
+      if (!info?.parentID) {
+        for (const id of chain) cache.set(id, current)
+        return current
+      }
+
+      current = info.parentID
+    }
+
+    // Defensive: chain too deep or cyclic. Treat the original session as its own root.
+    for (const id of chain) cache.set(id, sessionID)
+    return sessionID
+  }
 }
 
 async function getSessionUUID(
@@ -84,6 +135,9 @@ function validateOptions(options: unknown): SessionCorrelationOptions {
   if (!Array.isArray(providers) || providers.length === 0 || !providers.every((id) => typeof id === 'string')) {
     throw new Error('opencode-session-correlation: options.providers must be a non-empty array of provider ID strings')
   }
+  if (candidate.collapseToRootSession !== undefined && typeof candidate.collapseToRootSession !== 'boolean') {
+    throw new Error('opencode-session-correlation: options.collapseToRootSession must be a boolean')
+  }
   return { ...candidate, providers } as SessionCorrelationOptions
 }
 
@@ -94,21 +148,47 @@ export async function createSessionCorrelationPlugin(
   const header = options.header ?? DEFAULT_HEADER
   const storagePath = options.storagePath ?? defaultStoragePath()
   const createUUID = options.createUUID ?? randomUUID
+  const resolveRootSessionID = options.collapseToRootSession
+    ? createRootSessionResolver(options.getSession ?? (async () => undefined))
+    : undefined
 
   return {
     'chat.headers': async (input, output) => {
       if (!input.sessionID) return
       if (!providers.has(input.provider.id)) return
 
-      output.headers[header] = await getSessionUUID(storagePath, input.sessionID, createUUID)
+      const mappingKey = resolveRootSessionID
+        ? await resolveRootSessionID(input.sessionID)
+        : input.sessionID
+
+      output.headers[header] = await getSessionUUID(storagePath, mappingKey, createUUID)
     },
   }
 }
 
+interface OpenCodeClientLike {
+  session?: {
+    get?: (parameters: { sessionID: string }) => Promise<
+      { data?: SessionInfo; error?: unknown } | undefined
+    >
+  }
+}
+
 export default async function sessionCorrelationPlugin(
-  _input: unknown,
+  input: unknown,
   options?: unknown,
 ): Promise<SessionCorrelationHooks> {
   const validated = validateOptions(options)
+
+  if (validated.collapseToRootSession && !validated.getSession) {
+    const client = (input as { client?: OpenCodeClientLike } | undefined)?.client
+    validated.getSession = async (sessionID) => {
+      if (!client?.session?.get) return undefined
+      const result = await client.session.get({ sessionID })
+      if (!result || result.error) return undefined
+      return result.data
+    }
+  }
+
   return createSessionCorrelationPlugin(validated)
 }
