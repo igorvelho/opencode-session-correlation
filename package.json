@@ -1,6 +1,6 @@
 {
   "name": "opencode-session-correlation",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "OpenCode plugin that injects a stable UUID correlation header per session for configured providers, so a gateway can group requests from the same OpenCode session.",
   "type": "module",
   "main": "dist/index.js",
