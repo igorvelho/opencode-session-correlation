@@ -1,20 +1,25 @@
 # opencode-session-correlation
 
-Local OpenCode plugin that injects a stable UUID correlation header for configured providers, so a gateway can group multiple requests from the same OpenCode session.
+OpenCode does not send a session identifier that LLM gateways can group requests by, so gateways with Claude Code-specific session handling (for example a LiteLLM deployment that recognizes real Claude Code CLI traffic) can't tell which requests belong to the same OpenCode conversation.
+
+This plugin closes that gap by **mimicking the Claude Code CLI**: it sends the same `x-claude-code-session-id` header that Claude Code itself sends, populated with a UUID derived from the native OpenCode session ID. A gateway that already has special handling for that header — because it supports Claude Code — will display and group OpenCode sessions the same way it does Claude Code sessions.
+
+It is not a generic "add a header" utility, and it is not LiteLLM's own documented session mechanism (LiteLLM's own session grouping takes a `litellm_session_id` field in the request body — see [LiteLLM Session Logs](https://docs.litellm.ai/docs/proxy/ui_logs_sessions)). This plugin instead piggybacks on whatever Claude Code-specific handling a gateway already has, by making OpenCode requests indistinguishable, header-wise, from Claude Code requests.
 
 ## What it does
 
 - Hooks into OpenCode's `chat.headers` event.
-- For configured provider IDs only, adds a UUID header derived from the native OpenCode session ID.
+- For configured provider IDs only, adds the `x-claude-code-session-id` header, populated with a UUID derived from the native OpenCode session ID.
 - Persists the native-session-to-UUID mapping locally so the same OpenCode session always sends the same UUID.
 - Does nothing for providers that are not in the configured list.
 
 ## What it does not do
 
 - It does not change request bodies, models, endpoints, or authentication.
-- It does not add client-identity headers such as `User-Agent` or `x-app`.
+- It does not add other client-identity headers such as `User-Agent` or `x-app`.
 - It does not send end-user metadata or log prompts, secrets, or request bodies.
-- It does not guarantee that a gateway displays or uses the header. Whether a gateway maps this header into a "Session ID" field depends entirely on that gateway's own request parsing.
+- It does not let you change the header name. The header is fixed to `x-claude-code-session-id` because the whole mechanism depends on matching what the real Claude Code CLI sends — a different name would not be recognized by a gateway's Claude Code-specific handling and would defeat the plugin's purpose.
+- It does not guarantee that a gateway displays or uses the header. Whether a gateway maps this header into a "Session ID" field depends entirely on that gateway's own request parsing, and this behavior is not part of LiteLLM's documented public API as of this writing — verify against your own gateway before relying on it.
 
 ## Install
 
@@ -32,8 +37,7 @@ Add to `opencode.json`:
     [
       "opencode-session-correlation",
       {
-        "providers": ["example-gateway"],
-        "header": "x-claude-code-session-id"
+        "providers": ["example-gateway"]
       }
     ]
   ]
@@ -48,16 +52,14 @@ Using a local checkout instead of the npm package? Point at the directory instea
     [
       "/absolute/path/to/opencode-session-correlation",
       {
-        "providers": ["example-gateway"],
-        "header": "x-claude-code-session-id"
+        "providers": ["example-gateway"]
       }
     ]
   ]
 }
 ```
 
-- `providers` (required): non-empty array of provider IDs from your OpenCode config. The header is only added for these providers.
-- `header` (optional): header name to inject. Defaults to `x-claude-code-session-id`.
+- `providers` (required): non-empty array of provider IDs from your OpenCode config. The header is only added for these providers — everything else (direct Anthropic, OpenAI, etc.) is left untouched, since sending a fake Claude Code header to a provider that isn't your gateway would be meaningless at best and misleading at worst.
 - `storagePath` (optional, advanced): override the local mapping file. Defaults to `${XDG_DATA_HOME:-$HOME/.local/share}/opencode/session-correlation.json`.
 - `collapseToRootSession` (optional, default `false`): when `true`, subagent/task sessions (which OpenCode creates as child sessions with a `parentID`) resolve up to their root session and share that root's UUID, instead of each getting its own UUID. When `false` (default), every OpenCode session — including subagent sessions — gets its own distinct UUID.
 
@@ -78,7 +80,7 @@ Before enabling this, check whether your gateway enforces any per-session rate o
 }
 ```
 
-Native OpenCode session IDs are stored only in this local file. They are not sent to any provider; only the mapped UUID is sent in the configured header.
+Native OpenCode session IDs are stored only in this local file. They are not sent to any provider; only the mapped UUID is sent in the `x-claude-code-session-id` header.
 
 ## Verifying against a gateway
 

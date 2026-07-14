@@ -8,7 +8,6 @@ export interface SessionInfo {
 
 export interface SessionCorrelationOptions {
   providers: string[]
-  header?: string
   storagePath?: string
   createUUID?: () => string
   collapseToRootSession?: boolean
@@ -124,7 +123,11 @@ export interface SessionCorrelationHooks {
   'chat.headers'?: (input: ChatHeadersInput, output: ChatHeadersOutput) => Promise<void>
 }
 
-const DEFAULT_HEADER = 'x-claude-code-session-id'
+// Fixed to match the real Claude Code CLI's session header name. This is what
+// makes gateways that special-case Claude Code (e.g. session grouping in a
+// LiteLLM deployment) recognize OpenCode sessions the same way. It is not
+// configurable: any other name defeats the mimicry this plugin exists for.
+const CLAUDE_CODE_SESSION_HEADER = 'x-claude-code-session-id'
 
 function validateOptions(options: unknown): SessionCorrelationOptions {
   if (!options || typeof options !== 'object') {
@@ -145,7 +148,6 @@ export async function createSessionCorrelationPlugin(
   options: SessionCorrelationOptions,
 ): Promise<SessionCorrelationHooks> {
   const providers = new Set(options.providers)
-  const header = options.header ?? DEFAULT_HEADER
   const storagePath = options.storagePath ?? defaultStoragePath()
   const createUUID = options.createUUID ?? randomUUID
   const resolveRootSessionID = options.collapseToRootSession
@@ -161,7 +163,7 @@ export async function createSessionCorrelationPlugin(
         ? await resolveRootSessionID(input.sessionID)
         : input.sessionID
 
-      output.headers[header] = await getSessionUUID(storagePath, mappingKey, createUUID)
+      output.headers[CLAUDE_CODE_SESSION_HEADER] = await getSessionUUID(storagePath, mappingKey, createUUID)
     },
   }
 }
