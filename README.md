@@ -63,7 +63,7 @@ Using a local checkout instead of the npm package? Point at the directory instea
 
 ### Choosing `collapseToRootSession`
 
-OpenCode's `task` tool creates a new session for every subagent dispatch, chained via `parentID` back to the session that spawned it. With `collapseToRootSession: false` (default), a single multi-agent run (for example `/full-loop-report` dispatching several subagents) shows up as many separate sessions to your gateway. With `collapseToRootSession: true`, the whole run shows up as one session.
+OpenCode's `task` tool creates a new session for every subagent dispatch, chained via `parentID` back to the session that spawned it. With `collapseToRootSession: false` (default), a single multi-agent run that dispatches several subagents shows up as many separate sessions to your gateway. With `collapseToRootSession: true`, the whole run shows up as one session.
 
 Before enabling this, check whether your gateway enforces any per-session rate or budget limits (for example LiteLLM's `max_iterations` / `max_budget_per_session`, which are scoped to a session identifier). If such a limit exists, collapsing many subagent calls into one session ID could trip it sooner than the default per-session behavior would. This plugin does not affect Anthropic prompt caching either way — caching is based on request content (`cache_control` breakpoints), not on this header.
 
@@ -95,6 +95,14 @@ bun test
 bun run typecheck
 bun run build
 ```
+
+## Contributing
+
+Contributions are welcome. See [CONTRIBUTING.md](CONTRIBUTING.md) for development setup, coding standards, and the pull request process. Please also review the [Code of Conduct](CODE_OF_CONDUCT.md).
+
+## Security
+
+To report a security vulnerability, see [SECURITY.md](SECURITY.md). Do not open a public issue for security reports.
 
 ## License
 
