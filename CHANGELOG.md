@@ -1,3 +1,15 @@
+# [1.0.0](https://github.com/igorvelho/opencode-session-correlation/compare/v0.2.1...v1.0.0) (2026-07-14)
+
+
+* fix!: hardcode Claude Code session header, drop header option ([afb0356](https://github.com/igorvelho/opencode-session-correlation/commit/afb03566c49347a45977ce3340678de0649f2c5b))
+
+
+### BREAKING CHANGES
+
+* the `header` plugin option has been removed. The
+header is now fixed to x-claude-code-session-id and cannot be
+overridden.
+
 ## [0.2.1](https://github.com/igorvelho/opencode-session-correlation/compare/v0.2.0...v0.2.1) (2026-07-14)
 
 
